@@ -10,6 +10,7 @@ from app.schemas.patient import (
     UpdateEmergencyContactRequest
 )
 from app.services.patient_service import PatientService
+from app.core.websocket import profile_manager
 
 router = APIRouter(prefix="/patients", tags=["Patients"])
 
@@ -62,6 +63,16 @@ async def update_my_profile(
         )
 
     patient = await PatientService.update_patient_profile(db, current_user.id, data)
+    
+    # Broadcast real-time update via WebSocket
+    await profile_manager.broadcast_to_user(
+        str(current_user.id),
+        {
+            "type": "profile_update",
+            "data": PatientResponse.model_validate(patient).model_dump(mode='json')
+        }
+    )
+    
     return patient
 
 

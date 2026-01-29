@@ -11,6 +11,7 @@ from app.schemas.doctor import (
     ConsultationTypeConfigRequest
 )
 from app.services.doctor_service import DoctorService
+from app.core.websocket import profile_manager
 
 router = APIRouter(prefix="/doctors", tags=["Doctors"])
 
@@ -62,6 +63,16 @@ async def update_my_profile(
         )
 
     doctor = await DoctorService.update_doctor_profile(db, current_user.id, data)
+    
+    # Broadcast real-time update via WebSocket
+    await profile_manager.broadcast_to_user(
+        str(current_user.id),
+        {
+            "type": "profile_update",
+            "data": DoctorResponse.model_validate(doctor).model_dump(mode='json')
+        }
+    )
+    
     return doctor
 
 

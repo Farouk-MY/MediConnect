@@ -18,6 +18,8 @@ import { Select } from '@/components/ui/Select';
 import { colors } from '@/lib/constants/colors';
 import { doctorsApi, DoctorProfile, DoctorUpdateRequest, EducationItem } from '@/lib/api/doctors';
 import { useToast } from '@/lib/hooks/useToast';
+import { useLocation } from '@/lib/hooks/useLocation';
+import { useProfileWebSocket } from '@/lib/hooks/useProfileWebSocket';
 import { Toast } from '@/components/ui/Toast';
 
 const { width } = Dimensions.get('window');
@@ -89,6 +91,7 @@ export default function DoctorProfileScreen() {
     const [isEditing, setIsEditing] = useState(false);
     const [saving, setSaving] = useState(false);
     const { toast, showToast, hideToast } = useToast();
+    const { loading: locationLoading, error: locationError, getCurrentLocation } = useLocation();
 
     const [activeTab, setActiveTab] = useState<'info' | 'cabinet' | 'pricing'>('info');
     const [formData, setFormData] = useState<DoctorUpdateRequest>({});
@@ -100,6 +103,42 @@ export default function DoctorProfileScreen() {
         institution: '',
         year: new Date().getFullYear(),
         country: '',
+    });
+
+    // Real-time profile updates via WebSocket
+    useProfileWebSocket({
+        onProfileUpdate: (data) => {
+            const updatedProfile = data as DoctorProfile;
+            setProfile(updatedProfile);
+            // Only update form if not currently editing
+            if (!isEditing) {
+                setFormData({
+                    first_name: updatedProfile.first_name,
+                    last_name: updatedProfile.last_name,
+                    specialty: updatedProfile.specialty,
+                    years_experience: updatedProfile.years_experience,
+                    bio: updatedProfile.bio || '',
+                    languages: updatedProfile.languages || [],
+                    education: updatedProfile.education || [],
+                    cabinet_address: updatedProfile.cabinet_address || '',
+                    cabinet_city: updatedProfile.cabinet_city || '',
+                    cabinet_country: updatedProfile.cabinet_country || '',
+                    cabinet_postal_code: updatedProfile.cabinet_postal_code || '',
+                    cabinet_phone: updatedProfile.cabinet_phone || '',
+                    cabinet_email: updatedProfile.cabinet_email || '',
+                    latitude: updatedProfile.latitude,
+                    longitude: updatedProfile.longitude,
+                    consultation_fee_presentiel: updatedProfile.consultation_fee_presentiel,
+                    consultation_fee_online: updatedProfile.consultation_fee_online,
+                    currency: updatedProfile.currency,
+                    payment_methods: updatedProfile.payment_methods || [],
+                    offers_presentiel: updatedProfile.offers_presentiel,
+                    offers_online: updatedProfile.offers_online,
+                    is_accepting_patients: updatedProfile.is_accepting_patients,
+                });
+            }
+        },
+        enabled: !isEditing, // Disable while editing to prevent conflicts
     });
 
     useEffect(() => {
@@ -312,13 +351,13 @@ export default function DoctorProfileScreen() {
                 {/* Clear Tab Navigation */}
                 <View className="px-5 mt-5 mb-4">
                     <View className="bg-white rounded-2xl p-2 flex-row"
-                          style={{
-                              shadowColor: '#000',
-                              shadowOffset: { width: 0, height: 2 },
-                              shadowOpacity: 0.08,
-                              shadowRadius: 8,
-                              elevation: 3,
-                          }}
+                        style={{
+                            shadowColor: '#000',
+                            shadowOffset: { width: 0, height: 2 },
+                            shadowOpacity: 0.08,
+                            shadowRadius: 8,
+                            elevation: 3,
+                        }}
                     >
                         <TabButton
                             active={activeTab === 'info'}
@@ -544,6 +583,111 @@ export default function DoctorProfileScreen() {
                                     icon="mail-outline"
                                 />
                             </Card>
+
+                            {/* GPS Location Section */}
+                            <SectionHeader icon="navigate" title="Cabinet Location" />
+
+                            <Card>
+                                {/* Info Note */}
+                                <View
+                                    className="flex-row items-start p-3 rounded-xl mb-4"
+                                    style={{ backgroundColor: `${colors.primary[500]}10` }}
+                                >
+                                    <Ionicons name="information-circle" size={20} color={colors.primary[600]} />
+                                    <Text className="flex-1 ml-2 text-sm" style={{ color: colors.primary[700] }}>
+                                        Make sure you click the button when you are at your cabinet to get the correct location.
+                                    </Text>
+                                </View>
+
+                                {/* Current Coordinates Display */}
+                                {(formData.latitude && formData.longitude) ? (
+                                    <View className="mb-4">
+                                        <View className="flex-row items-center mb-2">
+                                            <View
+                                                className="w-8 h-8 rounded-lg items-center justify-center mr-2"
+                                                style={{ backgroundColor: `${colors.secondary[500]}15` }}
+                                            >
+                                                <Ionicons name="checkmark-circle" size={18} color={colors.secondary[600]} />
+                                            </View>
+                                            <Text className="text-gray-900 font-semibold">Location Set</Text>
+                                        </View>
+                                        <View className="bg-gray-50 rounded-xl p-3">
+                                            <View className="flex-row justify-between mb-1">
+                                                <Text className="text-gray-500 text-sm">Latitude</Text>
+                                                <Text className="text-gray-900 font-medium text-sm">
+                                                    {formData.latitude.toFixed(6)}
+                                                </Text>
+                                            </View>
+                                            <View className="flex-row justify-between">
+                                                <Text className="text-gray-500 text-sm">Longitude</Text>
+                                                <Text className="text-gray-900 font-medium text-sm">
+                                                    {formData.longitude.toFixed(6)}
+                                                </Text>
+                                            </View>
+                                        </View>
+                                    </View>
+                                ) : (
+                                    <View className="mb-4">
+                                        <View className="flex-row items-center">
+                                            <View
+                                                className="w-8 h-8 rounded-lg items-center justify-center mr-2"
+                                                style={{ backgroundColor: '#FEE2E2' }}
+                                            >
+                                                <Ionicons name="location-outline" size={18} color="#EF4444" />
+                                            </View>
+                                            <Text className="text-gray-500">No location set</Text>
+                                        </View>
+                                    </View>
+                                )}
+
+                                {/* Location Error */}
+                                {locationError && (
+                                    <View className="bg-red-50 p-3 rounded-xl mb-4 flex-row items-center">
+                                        <Ionicons name="alert-circle" size={18} color="#EF4444" />
+                                        <Text className="text-red-600 text-sm ml-2 flex-1">{locationError}</Text>
+                                    </View>
+                                )}
+
+                                {/* Get Location Button */}
+                                {isEditing && (
+                                    <TouchableOpacity
+                                        onPress={async () => {
+                                            const coords = await getCurrentLocation();
+                                            if (coords) {
+                                                setFormData({
+                                                    ...formData,
+                                                    latitude: coords.latitude,
+                                                    longitude: coords.longitude,
+                                                });
+                                                showToast('Location captured successfully!', 'success');
+                                            }
+                                        }}
+                                        disabled={locationLoading}
+                                        className="rounded-xl overflow-hidden"
+                                    >
+                                        <LinearGradient
+                                            colors={[colors.secondary[500], colors.secondary[600]]}
+                                            className="py-3.5 px-4 flex-row items-center justify-center"
+                                            style={{ borderRadius: 12 }}
+                                        >
+                                            {locationLoading ? (
+                                                <ActivityIndicator size="small" color="white" />
+                                            ) : (
+                                                <>
+                                                    <Ionicons
+                                                        name={formData.latitude ? "refresh" : "navigate"}
+                                                        size={20}
+                                                        color="white"
+                                                    />
+                                                    <Text className="text-white font-bold ml-2">
+                                                        {formData.latitude ? 'Update Location' : 'Get My Location'}
+                                                    </Text>
+                                                </>
+                                            )}
+                                        </LinearGradient>
+                                    </TouchableOpacity>
+                                )}
+                            </Card>
                         </View>
                     )}
 
@@ -556,7 +700,7 @@ export default function DoctorProfileScreen() {
                                 disabled={!isEditing}
                             >
                                 <Card className={formData.offers_presentiel ? 'border-2' : ''}
-                                      style={{ borderColor: formData.offers_presentiel ? colors.secondary[500] : 'transparent' }}
+                                    style={{ borderColor: formData.offers_presentiel ? colors.secondary[500] : 'transparent' }}
                                 >
                                     <View className="flex-row items-center">
                                         <Ionicons
@@ -577,7 +721,7 @@ export default function DoctorProfileScreen() {
                                 disabled={!isEditing}
                             >
                                 <Card className={formData.offers_online ? 'border-2' : ''}
-                                      style={{ borderColor: formData.offers_online ? colors.secondary[500] : 'transparent' }}
+                                    style={{ borderColor: formData.offers_online ? colors.secondary[500] : 'transparent' }}
                                 >
                                     <View className="flex-row items-center">
                                         <Ionicons

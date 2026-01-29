@@ -18,8 +18,9 @@ import { Select } from '@/components/ui/Select';
 import { colors } from '@/lib/constants/colors';
 import { patientsApi, PatientProfile, PatientUpdateRequest } from '@/lib/api/patients';
 import { useToast } from '@/lib/hooks/useToast';
+import { useProfileWebSocket } from '@/lib/hooks/useProfileWebSocket';
 import { Toast } from '@/components/ui/Toast';
-import {router} from "expo-router";
+import { router } from "expo-router";
 
 const { width } = Dimensions.get('window');
 const isSmallScreen = width < 380;
@@ -34,6 +35,31 @@ export default function PatientProfileScreen() {
 
     // Form state
     const [formData, setFormData] = useState<PatientUpdateRequest>({});
+
+    // Real-time profile updates via WebSocket
+    useProfileWebSocket({
+        onProfileUpdate: (data) => {
+            const updatedProfile = data as PatientProfile;
+            setProfile(updatedProfile);
+            // Only update form if not currently editing
+            if (!isEditing) {
+                setFormData({
+                    first_name: updatedProfile.first_name,
+                    last_name: updatedProfile.last_name,
+                    date_of_birth: updatedProfile.date_of_birth || '',
+                    gender: updatedProfile.gender,
+                    blood_type: updatedProfile.blood_type,
+                    phone: updatedProfile.phone || '',
+                    address: updatedProfile.address || '',
+                    city: updatedProfile.city || '',
+                    country: updatedProfile.country || '',
+                    postal_code: updatedProfile.postal_code || '',
+                    bio: updatedProfile.bio || '',
+                });
+            }
+        },
+        enabled: !isEditing, // Disable while editing to prevent conflicts
+    });
 
     useEffect(() => {
         loadProfile();
