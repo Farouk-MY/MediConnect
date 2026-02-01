@@ -109,13 +109,15 @@ async def search_doctors(
         consultation_type: Optional[str] = Query(None,
                                                  description="Filter by consultation type: 'presentiel' or 'online'"),
         max_fee: Optional[float] = Query(None, description="Maximum consultation fee"),
+        min_rating: Optional[float] = Query(None, ge=0, le=5, description="Minimum rating (0-5)"),
+        sort_by: Optional[str] = Query(None, description="Sort by: 'rating', 'price_asc', 'price_desc', 'experience'"),
         accepting_patients: bool = Query(True, description="Only show doctors accepting new patients"),
         limit: int = Query(20, le=100),
         offset: int = Query(0, ge=0),
         db: AsyncSession = Depends(get_db)
 ):
     """
-    Search for doctors with filters.
+    Search for doctors with filters and sorting.
 
     Public endpoint - anyone can search for doctors.
     Used by patients to find suitable doctors.
@@ -126,6 +128,8 @@ async def search_doctors(
     - doctor_name: Search by doctor's first or last name
     - consultation_type: "presentiel" or "online"
     - max_fee: Maximum consultation fee willing to pay
+    - min_rating: Minimum doctor rating (0-5)
+    - sort_by: Sort results by 'rating', 'price_asc', 'price_desc', 'experience'
     - accepting_patients: Only show doctors accepting new patients
     """
     doctors = await DoctorService.search_doctors(
@@ -135,6 +139,8 @@ async def search_doctors(
         doctor_name=doctor_name,
         consultation_type=consultation_type,
         max_fee=max_fee,
+        min_rating=min_rating,
+        sort_by=sort_by,
         accepting_patients=accepting_patients,
         limit=limit,
         offset=offset

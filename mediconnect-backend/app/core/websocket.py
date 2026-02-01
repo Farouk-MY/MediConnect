@@ -16,8 +16,8 @@ class ConnectionManager:
         self._connections: Dict[str, Set[WebSocket]] = {}
     
     async def connect(self, websocket: WebSocket, user_id: str):
-        """Accept a new WebSocket connection for a user."""
-        await websocket.accept()
+        """Register an already-accepted WebSocket connection for a user."""
+        # Note: websocket.accept() is called in main.py before authentication
         if user_id not in self._connections:
             self._connections[user_id] = set()
         self._connections[user_id].add(websocket)

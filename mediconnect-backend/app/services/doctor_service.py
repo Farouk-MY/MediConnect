@@ -93,15 +93,17 @@ class DoctorService:
             db: AsyncSession,
             specialty: Optional[str] = None,
             city: Optional[str] = None,
-            doctor_name: Optional[str] = None,  # NEW: Search by name
+            doctor_name: Optional[str] = None,
             consultation_type: Optional[str] = None,  # 'presentiel' or 'online'
             max_fee: Optional[float] = None,
+            min_rating: Optional[float] = None,
             accepting_patients: bool = True,
+            sort_by: Optional[str] = None,  # 'rating', 'price_asc', 'price_desc', 'experience'
             limit: int = 20,
             offset: int = 0
     ) -> List[Doctor]:
         """
-        Search doctors with filters.
+        Search doctors with filters and sorting.
 
         This will be used by patients to find doctors.
         """
@@ -120,7 +122,7 @@ class DoctorService:
         if city:
             query = query.where(Doctor.cabinet_city.ilike(f"%{city}%"))
 
-        # NEW: Filter by doctor name (first name or last name)
+        # Filter by doctor name (first name or last name)
         if doctor_name:
             query = query.where(
                 or_(
@@ -142,13 +144,29 @@ class DoctorService:
             elif consultation_type == 'online':
                 query = query.where(Doctor.consultation_fee_online <= max_fee)
             else:
-                # If no specific type, check if either fee is within budget
                 query = query.where(
                     or_(
                         Doctor.consultation_fee_presentiel <= max_fee,
                         Doctor.consultation_fee_online <= max_fee
                     )
                 )
+
+        # Filter by minimum rating
+        if min_rating is not None:
+            query = query.where(Doctor.average_rating >= min_rating)
+
+        # Apply sorting
+        if sort_by == 'rating':
+            query = query.order_by(Doctor.average_rating.desc())
+        elif sort_by == 'price_asc':
+            query = query.order_by(Doctor.consultation_fee_presentiel.asc())
+        elif sort_by == 'price_desc':
+            query = query.order_by(Doctor.consultation_fee_presentiel.desc())
+        elif sort_by == 'experience':
+            query = query.order_by(Doctor.years_experience.desc())
+        else:
+            # Default: sort by rating
+            query = query.order_by(Doctor.average_rating.desc())
 
         # Add pagination
         query = query.limit(limit).offset(offset)

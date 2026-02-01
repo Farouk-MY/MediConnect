@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 from app.config import settings
 from app.core.database import engine, Base
-from app.api.v1 import auth, patients, qr, doctors
+from app.api.v1 import auth, patients, qr, doctors, appointments
 from app.core.websocket import profile_manager
 from app.core.security import decode_token
 
@@ -58,28 +58,45 @@ async def health_check():
 async def websocket_profile(
     websocket: WebSocket,
     user_id: str,
-    token: str = Query(...)
+    token: str = Query(None)
 ):
     """
     WebSocket endpoint for real-time profile updates.
     
     Connect with: ws://host/ws/profile/{user_id}?token={access_token}
     """
+    # Must accept the connection first before we can send close codes
+    await websocket.accept()
+    
     # Verify token
     try:
-        payload = decode_token(token)
-        if payload is None or payload.get("sub") != user_id:
-            await websocket.close(code=4001)
+        if not token:
+            await websocket.close(code=4001, reason="Token required")
             return
-    except Exception:
-        await websocket.close(code=4001)
+            
+        payload = decode_token(token)
+        if payload is None:
+            await websocket.close(code=4001, reason="Invalid token")
+            return
+            
+        if payload.get("sub") != user_id:
+            await websocket.close(code=4001, reason="Token mismatch")
+            return
+            
+    except Exception as e:
+        print(f"WebSocket auth error: {e}")
+        await websocket.close(code=4001, reason="Authentication failed")
         return
     
+    # Token valid, register connection
     await profile_manager.connect(websocket, user_id)
     try:
         while True:
             # Keep connection alive, wait for messages (ping/pong)
-            await websocket.receive_text()
+            data = await websocket.receive_text()
+            # Echo back for ping-pong
+            if data == "ping":
+                await websocket.send_text("pong")
     except WebSocketDisconnect:
         profile_manager.disconnect(websocket, user_id)
 
@@ -89,4 +106,5 @@ app.include_router(auth.router, prefix="/api/v1")
 app.include_router(patients.router, prefix="/api/v1")
 app.include_router(qr.router, prefix="/api/v1")
 app.include_router(doctors.router, prefix="/api/v1")
+app.include_router(appointments.router, prefix="/api/v1")
 
