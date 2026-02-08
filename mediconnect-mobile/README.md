@@ -48,3 +48,8 @@ Join our community of developers creating universal apps.
 
 - [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
 - [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+
+
+
+
+doctorCard not well made make it better ... and please in the spash screen there is loading anmation something like that ||||  .... make it as a component beacuse i wanna use it il all pages when something is loading

@@ -3,8 +3,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 from app.config import settings
 from app.core.database import engine, Base
-from app.api.v1 import auth, patients, qr, doctors, appointments
-from app.core.websocket import profile_manager
+from app.api.v1 import auth, patients, qr, doctors, appointments, availability, absences
+from app.core.websocket import profile_manager, schedule_manager
 from app.core.security import decode_token
 
 
@@ -101,10 +101,60 @@ async def websocket_profile(
         profile_manager.disconnect(websocket, user_id)
 
 
+# WebSocket endpoint for real-time schedule updates
+@app.websocket("/ws/schedule/{doctor_id}")
+async def websocket_schedule(
+    websocket: WebSocket,
+    doctor_id: str,
+    token: str = Query(None)
+):
+    """
+    WebSocket endpoint for real-time schedule updates.
+    
+    Connect with: ws://host/ws/schedule/{doctor_id}?token={access_token}
+    
+    Events:
+    - schedule_update: Weekly schedule changed
+    - absence_update: Absence created/updated/cancelled
+    - appointment_update: Appointment status changed
+    """
+    await websocket.accept()
+    
+    # Verify token
+    try:
+        if not token:
+            await websocket.close(code=4001, reason="Token required")
+            return
+            
+        payload = decode_token(token)
+        if payload is None:
+            await websocket.close(code=4001, reason="Invalid token")
+            return
+            
+    except Exception as e:
+        print(f"WebSocket auth error: {e}")
+        await websocket.close(code=4001, reason="Authentication failed")
+        return
+    
+    # Register connection
+    await schedule_manager.connect_doctor(websocket, doctor_id)
+    try:
+        while True:
+            data = await websocket.receive_text()
+            if data == "ping":
+                await websocket.send_text("pong")
+    except WebSocketDisconnect:
+        schedule_manager.disconnect_doctor(websocket, doctor_id)
+
+
 # Include routers
 app.include_router(auth.router, prefix="/api/v1")
 app.include_router(patients.router, prefix="/api/v1")
 app.include_router(qr.router, prefix="/api/v1")
 app.include_router(doctors.router, prefix="/api/v1")
 app.include_router(appointments.router, prefix="/api/v1")
+app.include_router(availability.router, prefix="/api/v1")
+app.include_router(availability.public_router, prefix="/api/v1")
+app.include_router(absences.router, prefix="/api/v1")
+
 

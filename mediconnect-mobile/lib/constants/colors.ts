@@ -31,6 +31,7 @@ export const colors = {
     warning: '#F59E0B',
     error: '#EF4444',
     info: '#3B82F6',
+    danger: '#EF4444',
     // Grays
     gray: {
         50: '#F9FAFB',
