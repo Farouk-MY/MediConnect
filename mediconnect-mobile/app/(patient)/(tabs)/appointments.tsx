@@ -6,10 +6,10 @@ import {
     ScrollView, 
     FlatList,
     RefreshControl,
-    ActivityIndicator,
     Modal,
     Alert,
-    TextInput
+    TextInput,
+    ActivityIndicator
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
@@ -18,6 +18,7 @@ import * as Animatable from 'react-native-animatable';
 import { colors } from '@/lib/constants/colors';
 import { appointmentsApi, Appointment, AppointmentStatus } from '@/lib/api/appointments';
 import AppointmentCard from '@/components/patient/AppointmentCard';
+import AnimatedLoader from '@/components/ui/AnimatedLoader';
 
 type TabFilter = 'upcoming' | 'past' | 'all';
 
@@ -187,8 +188,7 @@ export default function AppointmentsScreen() {
             {/* Content */}
             {loading ? (
                 <View className="flex-1 items-center justify-center">
-                    <ActivityIndicator size="large" color={colors.primary[600]} />
-                    <Text className="text-gray-500 mt-4">Loading appointments...</Text>
+                    <AnimatedLoader size="large" message="Chargement des rendez-vous..." />
                 </View>
             ) : (
                 <FlatList

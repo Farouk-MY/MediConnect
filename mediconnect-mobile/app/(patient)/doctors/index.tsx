@@ -13,7 +13,6 @@ import {
     ScrollView, 
     TextInput, 
     Modal,
-    ActivityIndicator,
     RefreshControl,
     FlatList,
     KeyboardAvoidingView,
@@ -30,6 +29,7 @@ import { colors } from '@/lib/constants/colors';
 import { doctorsApi, DoctorPublicProfile, DoctorSearchParams } from '@/lib/api/doctors';
 import DoctorCard from '@/components/patient/DoctorCard';
 import DoctorMapView from '@/components/patient/DoctorMapView';
+import AnimatedLoader from '@/components/ui/AnimatedLoader';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -334,17 +334,7 @@ export default function DoctorSearchScreen() {
             {/* Content */}
             {loading ? (
                 <View className="flex-1 items-center justify-center">
-                    <Animatable.View animation="pulse" iterationCount="infinite">
-                        <LinearGradient
-                            colors={[colors.primary[100], colors.primary[50]]}
-                            className="w-20 h-20 rounded-3xl items-center justify-center"
-                        >
-                            <ActivityIndicator size="large" color={colors.primary[600]} />
-                        </LinearGradient>
-                    </Animatable.View>
-                    <Text className="text-gray-500 mt-4 font-medium">
-                        Recherche en cours...
-                    </Text>
+                    <AnimatedLoader size="large" message="Recherche en cours..." />
                 </View>
             ) : (
                 viewMode === 'list' ? renderListView() : renderMapView()

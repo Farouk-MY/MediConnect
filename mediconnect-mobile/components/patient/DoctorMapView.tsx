@@ -31,12 +31,50 @@ export default function DoctorMapView({ doctors, onDoctorSelect }: DoctorMapView
     const getUserLocation = async () => {
         try {
             const { status } = await Location.requestForegroundPermissionsAsync();
-            if (status === 'granted') {
-                const location = await Location.getCurrentPositionAsync({});
+            if (status !== 'granted') {
+                console.log('Location permission denied');
+                setLoading(false);
+                return;
+            }
+
+            // Try to get last known position first (fast)
+            const lastKnown = await Location.getLastKnownPositionAsync();
+            if (lastKnown) {
                 setUserLocation({
-                    latitude: location.coords.latitude,
-                    longitude: location.coords.longitude,
+                    latitude: lastKnown.coords.latitude,
+                    longitude: lastKnown.coords.longitude,
                 });
+                setLoading(false);
+                
+                // Then try to get current position in background (no await)
+                Location.getCurrentPositionAsync({
+                    accuracy: Location.Accuracy.Balanced,
+                }).then(location => {
+                    setUserLocation({
+                        latitude: location.coords.latitude,
+                        longitude: location.coords.longitude,
+                    });
+                }).catch(() => {
+                    // Already have last known, ignore error
+                });
+                return;
+            }
+
+            // No last known, try current with timeout
+            const timeoutPromise = new Promise<null>((resolve) => 
+                setTimeout(() => resolve(null), 3000)
+            );
+
+            const locationPromise = Location.getCurrentPositionAsync({
+                accuracy: Location.Accuracy.Low, // Low is fastest
+            }).then(loc => ({
+                latitude: loc.coords.latitude,
+                longitude: loc.coords.longitude,
+            })).catch(() => null);
+
+            const coords = await Promise.race([locationPromise, timeoutPromise]);
+            if (coords) {
+                setUserLocation(coords);
             }
         } catch (error) {
             console.log('Error getting location:', error);
